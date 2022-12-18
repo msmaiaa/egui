@@ -119,8 +119,32 @@ impl<'l> StripLayout<'l> {
             max_rect.union(used_rect)
         };
 
-        let response = self.ui.allocate_rect(allocation_rect, Sense::hover());
+        let response = self
+            .ui
+            .allocate_rect(allocation_rect, Sense::hover())
+            .interact(Sense::click());
 
+        (used_rect, response)
+    }
+
+    pub(crate) fn add_selected(
+        &mut self,
+        clip: bool,
+        striped: bool,
+        width: CellSize,
+        height: CellSize,
+        add_cell_contents: impl FnOnce(&mut Ui),
+    ) -> (Rect, Response) {
+        let max_rect = self.cell_rect(&width, &height);
+
+        // Make sure we don't have a gap in the stripe background:
+        let rect = max_rect.expand2(0.5 * self.ui.spacing().item_spacing);
+
+        self.ui
+            .painter()
+            .rect_filled(rect, 0.0, self.ui.visuals().selection.bg_fill);
+        let (used_rect, response) = self.add(clip, striped, width, height, add_cell_contents);
+        response.interact(Sense::click());
         (used_rect, response)
     }
 

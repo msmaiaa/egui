@@ -399,6 +399,7 @@ impl<'a> TableBuilder<'a> {
                 col_index: 0,
                 striped: false,
                 height,
+                selected: false,
             });
             layout.allocate_rect();
         });
@@ -777,6 +778,7 @@ impl<'a> TableBody<'a> {
             col_index: 0,
             striped: self.striped && self.row_nr % 2 == 0,
             height,
+            selected: false,
         });
         let bottom_y = self.layout.cursor.y;
 
@@ -785,6 +787,31 @@ impl<'a> TableBody<'a> {
         }
 
         self.row_nr += 1;
+    }
+
+    /// Add a single row with the given height and the indicated selection status.
+    ///
+    /// If you have many thousands of row it can be more performant to instead use [`Self::rows`] or [`Self::heterogeneous_rows`].
+    /// Note that the row background will indicate selection, but the widget painting that needs to indicate that
+    /// the widget is selected (i.e., the contents of the row) is up to you to provide.  For example, if your table
+    /// has several `label`s in the columns, you could replace selected `label` with a `strong` widget for a selected
+    /// row.
+    pub fn row_with_selection(
+        &mut self,
+        height: f32,
+        selected: bool,
+        row: impl FnOnce(TableRow<'a, '_>),
+    ) {
+        row(TableRow {
+            layout: &mut self.layout,
+            columns: self.columns,
+            widths: &self.widths,
+            max_used_widths: self.max_used_widths,
+            col_index: 0,
+            striped: self.striped && self.row_nr % 2 == 0,
+            height,
+            selected,
+        });
     }
 
     /// Add many rows with same height.
@@ -853,6 +880,7 @@ impl<'a> TableBody<'a> {
                     col_index: 0,
                     striped: self.striped && idx % 2 == 0,
                     height: row_height_sans_spacing,
+                    selected: false,
                 },
             );
         }
@@ -931,6 +959,7 @@ impl<'a> TableBody<'a> {
                         col_index: 0,
                         striped: self.striped && row_index % 2 == 0,
                         height: row_height,
+                        selected: false,
                     },
                 );
                 break;
@@ -950,6 +979,7 @@ impl<'a> TableBody<'a> {
                     col_index: 0,
                     striped: self.striped && row_index % 2 == 0,
                     height: row_height,
+                    selected: false,
                 },
             );
             cursor_y += (row_height + spacing.y) as f64;
@@ -1020,6 +1050,7 @@ pub struct TableRow<'a, 'b> {
     col_index: usize,
     striped: bool,
     height: f32,
+    selected: bool,
 }
 
 impl<'a, 'b> TableRow<'a, 'b> {
@@ -1045,6 +1076,12 @@ impl<'a, 'b> TableRow<'a, 'b> {
         let width = CellSize::Absolute(width);
         let height = CellSize::Absolute(self.height);
 
+        if self.selected {
+            let (used_rect, response) =
+                self.layout
+                    .add_selected(clip, self.striped, width, height, add_cell_contents);
+            return (used_rect, response);
+        }
         let (used_rect, response) =
             self.layout
                 .add(clip, self.striped, width, height, add_cell_contents);
@@ -1054,6 +1091,10 @@ impl<'a, 'b> TableRow<'a, 'b> {
         }
 
         (used_rect, response)
+    }
+
+    pub fn selected(&self) -> bool {
+        self.selected
     }
 }
 
